@@ -186,7 +186,7 @@ function getTextureVRAMByteLength(texture: Texture): number | undefined {
     return uncompressedBytes;    
 
   } else if (texture.image) {
-    const { image } = texture;
+    const image = texture.image as { width: number; height: number };
     const channels = 4;
 
     let resolution = [image.width, image.height];
