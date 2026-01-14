@@ -178,7 +178,10 @@ function getTextureVRAMByteLength(texture: Texture): number | undefined {
 
   if (texture?.userData.mimeType == "image/ktx2" && texture.mipmaps)  {
     for (let i = 0; i < texture.mipmaps.length; i++) {
-      uncompressedBytes += texture.mipmaps[i].data.byteLength;
+      const mipmap = texture.mipmaps[i];
+      if ('data' in mipmap && mipmap.data) {
+        uncompressedBytes += mipmap.data.byteLength;
+      }
     }
     return uncompressedBytes;    
 

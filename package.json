@@ -53,21 +53,21 @@
     "not dead"
   ],
   "peerDependencies": {
-    "three": ">=0.160.0"
+    "three": ">=0.160.0 <0.180.0"
   },
   "devDependencies": {
-    "@loaders.gl/3d-tiles": "^4.1.0",
-    "@loaders.gl/core": "^4.1.0",
-    "@loaders.gl/json": "^4.1.0",
-    "@loaders.gl/polyfills": "^4.1.0",
-    "@loaders.gl/schema": "^4.1.0",
-    "@loaders.gl/tiles": "^4.3.0-alpha.4",
-    "@math.gl/core": "^4.0.0",
-    "@math.gl/culling": "^4.0.0",
-    "@math.gl/geospatial": "^4.0.0",
+    "@loaders.gl/3d-tiles": "^4.3.4",
+    "@loaders.gl/core": "^4.3.4",
+    "@loaders.gl/json": "^4.3.4",
+    "@loaders.gl/polyfills": "^4.3.4",
+    "@loaders.gl/schema": "^4.3.4",
+    "@loaders.gl/tiles": "^4.3.4",
+    "@math.gl/core": "^4.1.0",
+    "@math.gl/culling": "^4.1.0",
+    "@math.gl/geospatial": "^4.1.0",
     "@microsoft/api-documenter": "^7.23.16",
     "@microsoft/api-extractor": "^7.39.1",
-    "@probe.gl/stats-widget": "^4.0.4",
+    "@probe.gl/stats-widget": "^4.1.0",
     "@rollup/plugin-alias": "^5.1.0",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-eslint": "^9.0.5",
@@ -78,7 +78,7 @@
     "@types/mocha": "^8.2.2",
     "@types/node": "^18.0.0",
     "@types/offscreencanvas": "^2019.6.4",
-    "@types/three": "^0.160.0",
+    "@types/three": "^0.172.0",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "chai": "^4.3.4",
@@ -96,12 +96,12 @@
     "rollup-plugin-node-externals": "^2.2.0",
     "rollup-plugin-typescript2": "^0.36.0",
     "sinon": "^11.1.1",
-    "three": "^0.160.0",
+    "three": "^0.172.0",
     "three-story-controls": "^1.0.6",
     "ts-node": "^10.0.0",
-    "typescript": "^4.3.2",
-    "vite": "^5.0.9",
-    "vite-plugin-node-polyfills": "^0.17.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vite-plugin-node-polyfills": "^0.22.0",
     "xmldom": "github:xmldom/xmldom#0.7.0"
   }
 }
