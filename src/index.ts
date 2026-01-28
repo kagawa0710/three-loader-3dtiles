@@ -1,7 +1,7 @@
 import { load } from '@loaders.gl/core';
 import { CesiumIonLoader, Tiles3DLoader } from '@loaders.gl/3d-tiles';
 import { _GeoJSONLoader } from '@loaders.gl/json';
-import { Tileset3D, TILE_TYPE, TILE_CONTENT_STATE } from '@loaders.gl/tiles';
+import { Tileset3D, Tile3D, TILE_TYPE, TILE_CONTENT_STATE } from '@loaders.gl/tiles';
 import { CullingVolume, Plane } from '@math.gl/culling';
 import  { _PerspectiveFrustum as PerspectiveFrustum}  from '@math.gl/culling';
 import { Matrix4 as MathGLMatrix4, toRadians } from '@math.gl/core';
@@ -49,7 +49,9 @@ import type {
   GeoJSONLoaderProps, 
   FeatureToColor, 
   DrapingShaderOptions,
-  Viewport
+  Viewport,
+  TileFeatureMetadata,
+  TileInfo
 } from './types';
 import { PointCloudColoring, Shading } from './types';
 import { BinaryFeatureCollection, FeatureCollection } from '@loaders.gl/schema';
@@ -681,6 +683,45 @@ class Loader3DTiles {
             dracoLoader.dispose();
           }
         },
+        getVisibleTiles: (): TileInfo[] => {
+          return (tileset.tiles as Tile3D[])
+            .filter(tile => tile.selected && tile.content)
+            .map(tile => ({
+              id: tile.id,
+              depth: tile.depth,
+              contentLoaded: tile.contentState === TILE_CONTENT_STATE.READY,
+              visible: renderMap[tile.id]?.visible ?? false,
+              geometricError: tile.lodMetricValue,
+              metadata: extractTileMetadata(tile)
+            }));
+        },
+        getTileMetadata: (tileId: string): TileFeatureMetadata | null => {
+          const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+          if (!tile || !tile.content) {
+            return null;
+          }
+          return extractTileMetadata(tile);
+        },
+        getFeatureProperties: (tileId: string, featureIndex: number): Record<string, unknown> | null => {
+          const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+          if (!tile || !tile.content) {
+            return null;
+          }
+          const metadata = extractTileMetadata(tile);
+          if (!metadata) {
+            return null;
+          }
+          if (metadata.batchTable) {
+            const properties: Record<string, unknown> = {};
+            for (const [key, values] of Object.entries(metadata.batchTable)) {
+              if (Array.isArray(values) && featureIndex < values.length) {
+                properties[key] = values[featureIndex];
+              }
+            }
+            return Object.keys(properties).length > 0 ? properties : null;
+          }
+          return null;
+        },
       },
     };
   }
@@ -917,6 +958,31 @@ function cameraChanged(camera:Camera, lastCameraTransform:Matrix4) {
   return !camera.matrixWorld.equals(lastCameraTransform);
 }
 
+function extractTileMetadata(tile): TileFeatureMetadata | null {
+  if (!tile.content) {
+    return null;
+  }
+
+  const metadata: TileFeatureMetadata = {};
+
+  if (tile.content.batchTableJson) {
+    metadata.batchTable = tile.content.batchTableJson;
+  }
+
+  if (tile.content.header?.batchLength) {
+    metadata.featureCount = tile.content.header.batchLength;
+  }
+
+  if (tile.content.gltf?.extensions?.EXT_structural_metadata) {
+    metadata.structuralMetadata = {
+      schema: tile.content.gltf.extensions.EXT_structural_metadata.schema,
+      propertyTables: tile.content.gltf.extensions.EXT_structural_metadata.propertyTables
+    };
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
 function collectAttributions(tiles) {
   // attribution guidelines: https://developers.google.com/maps/documentation/tile/create-renderer#display-attributions
   
@@ -953,5 +1019,7 @@ export {
    LoaderOptions, 
    LoaderProps,
    GeoJSONLoaderProps,
-   DrapingShaderOptions
+   DrapingShaderOptions,
+   TileFeatureMetadata,
+   TileInfo
 };
