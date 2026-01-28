@@ -30,7 +30,8 @@ import {
   Euler,
   Quaternion,
   NormalBlending,
-  WebGLRenderer
+  WebGLRenderer,
+  Raycaster
 } from 'three';
 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -51,7 +52,8 @@ import type {
   DrapingShaderOptions,
   Viewport,
   TileFeatureMetadata,
-  TileInfo
+  TileInfo,
+  PickResult
 } from './types';
 import { PointCloudColoring, Shading } from './types';
 import { BinaryFeatureCollection, FeatureCollection } from '@loaders.gl/schema';
@@ -722,6 +724,13 @@ class Loader3DTiles {
           }
           return null;
         },
+        pick: (screenX: number, screenY: number, camera: Camera): PickResult | null => {
+          const results = pickTiles(screenX, screenY, camera, root, renderMap, tileset, viewport);
+          return results.length > 0 ? results[0] : null;
+        },
+        pickAll: (screenX: number, screenY: number, camera: Camera): PickResult[] => {
+          return pickTiles(screenX, screenY, camera, root, renderMap, tileset, viewport);
+        },
       },
     };
   }
@@ -983,6 +992,103 @@ function extractTileMetadata(tile): TileFeatureMetadata | null {
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
+function pickTiles(
+  screenX: number,
+  screenY: number,
+  camera: Camera,
+  root: Group,
+  renderMap: Record<string, Object3D>,
+  tileset: Tileset3D,
+  viewport: Viewport
+): PickResult[] {
+  const raycaster = new Raycaster();
+  const mouse = new Vector2(
+    (screenX / viewport.width) * 2 - 1,
+    -(screenY / viewport.height) * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObject(root, true);
+  const results: PickResult[] = [];
+
+  for (const intersect of intersects) {
+    const tileId = findTileIdForObject(intersect.object, renderMap);
+    if (!tileId) continue;
+
+    const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+    if (!tile) continue;
+
+    const featureId = getFeatureIdFromIntersection(intersect);
+    let properties: Record<string, unknown> | undefined;
+
+    if (featureId !== undefined && tile.content?.batchTableJson) {
+      properties = {};
+      for (const [key, values] of Object.entries(tile.content.batchTableJson)) {
+        if (Array.isArray(values) && featureId < values.length) {
+          properties[key] = values[featureId];
+        }
+      }
+      if (Object.keys(properties).length === 0) {
+        properties = undefined;
+      }
+    }
+
+    results.push({
+      tileId,
+      object: intersect.object,
+      point: intersect.point,
+      distance: intersect.distance,
+      faceIndex: intersect.faceIndex,
+      featureId,
+      properties
+    });
+  }
+
+  return results;
+}
+
+function findTileIdForObject(object: Object3D, renderMap: Record<string, Object3D>): string | null {
+  let current: Object3D | null = object;
+  while (current) {
+    for (const [tileId, tileObject] of Object.entries(renderMap)) {
+      if (current === tileObject || isDescendant(current, tileObject)) {
+        return tileId;
+      }
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function isDescendant(object: Object3D, potentialAncestor: Object3D): boolean {
+  let current: Object3D | null = object.parent;
+  while (current) {
+    if (current === potentialAncestor) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+function getFeatureIdFromIntersection(intersect: { object: Object3D; faceIndex?: number }): number | undefined {
+  const mesh = intersect.object as Mesh;
+  if (!mesh.geometry) return undefined;
+
+  const batchIdAttr = mesh.geometry.attributes['_BATCHID'] || mesh.geometry.attributes['_batchid'];
+  if (!batchIdAttr && intersect.faceIndex === undefined) return undefined;
+
+  if (batchIdAttr && intersect.faceIndex !== undefined) {
+    const index = mesh.geometry.index;
+    if (index) {
+      const vertexIndex = index.getX(intersect.faceIndex * 3);
+      return batchIdAttr.getX(vertexIndex);
+    } else {
+      return batchIdAttr.getX(intersect.faceIndex * 3);
+    }
+  }
+
+  return undefined;
+}
+
 function collectAttributions(tiles) {
   // attribution guidelines: https://developers.google.com/maps/documentation/tile/create-renderer#display-attributions
   
@@ -1021,5 +1127,6 @@ export {
    GeoJSONLoaderProps,
    DrapingShaderOptions,
    TileFeatureMetadata,
-   TileInfo
+   TileInfo,
+   PickResult
 };

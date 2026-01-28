@@ -172,6 +172,24 @@ interface TileInfo {
   metadata?: TileFeatureMetadata;
 }
 
+/** Result of a pick operation */
+interface PickResult {
+  /** The tile that was picked */
+  tileId: string;
+  /** The Three.js object that was intersected */
+  object: Object3D;
+  /** World-space intersection point */
+  point: Vector3;
+  /** Distance from camera to intersection */
+  distance: number;
+  /** Face index of the intersected triangle */
+  faceIndex?: number;
+  /** Feature/batch ID if available */
+  featureId?: number;
+  /** Feature properties if available */
+  properties?: Record<string, unknown>;
+}
+
 /** Runtime methods that can be used once a tileset is loaded */
 interface Runtime {
   /** 
@@ -239,6 +257,10 @@ interface Runtime {
   getTileMetadata(tileId: string): TileFeatureMetadata | null;
   /** Get feature properties at a specific index within a tile */
   getFeatureProperties(tileId: string, featureIndex: number): Record<string, unknown> | null;
+  /** Pick a feature at the given screen coordinates */
+  pick(screenX: number, screenY: number, camera: Camera): PickResult | null;
+  /** Pick all features intersected by a ray at the given screen coordinates */
+  pickAll(screenX: number, screenY: number, camera: Camera): PickResult[];
 }
 
 export type { 
@@ -251,6 +273,7 @@ export type {
   DrapingShaderOptions,
   Viewport,
   TileFeatureMetadata,
-  TileInfo
+  TileInfo,
+  PickResult
 };
 export { PointCloudColoring, Shading }
