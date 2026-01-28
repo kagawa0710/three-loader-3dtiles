@@ -64,6 +64,9 @@ const gradientTexture = typeof document != 'undefined' ? Util.generateGradientTe
 const grayscale = Gradients.GRAYSCALE;
 const grayscaleTexture = typeof document != 'undefined' ? Util.generateGradientTexture(grayscale) : null;
 
+const DRACO_CDN_PATH = 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/draco/gltf';
+const BASIS_CDN_PATH = 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/basis';
+
 const defaultOptions: LoaderOptions = {
   throttleRequests: true,
   maxRequests: 64,
@@ -85,8 +88,8 @@ const defaultOptions: LoaderOptions = {
   wireframe: false,
   debug: false,
   gltfLoader: null,
-  basisTranscoderPath: null,
-  dracoDecoderPath: null,
+  basisTranscoderPath: BASIS_CDN_PATH,
+  dracoDecoderPath: DRACO_CDN_PATH,
   material: null,
   contentPostProcess: undefined,
   preloadTilesCount: null,
