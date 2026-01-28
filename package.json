@@ -1,16 +1,16 @@
 {
-  "name": "three-loader-3dtiles",
-  "version": "1.2.7",
-  "description": "A 3D Tiles loader for Three.js",
+  "name": "@kagawa0710/three-loader-3dtiles",
+  "version": "2.0.0",
+  "description": "A 3D Tiles loader for Three.js (fork of @nytimes/three-loader-3dtiles with updated dependencies)",
   "main": "dist/lib/three-loader-3dtiles.umd.cjs",
   "module": "dist/lib/three-loader-3dtiles.js",
   "typings": "dist/lib/three-loader-3dtiles.d.ts",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nytimes/three-loader-3dtiles.git"
+    "url": "git+https://github.com/kagawa0710/three-loader-3dtiles.git"
   },
-  "homepage": "https://github.com/nytimes/three-loader-3dtiles",
+  "homepage": "https://github.com/kagawa0710/three-loader-3dtiles",
   "directories": {
     "example": "examples"
   },
@@ -53,7 +53,7 @@
     "not dead"
   ],
   "peerDependencies": {
-    "three": ">=0.160.0 <0.180.0"
+    "three": ">=0.160.0"
   },
   "devDependencies": {
     "@loaders.gl/3d-tiles": "^4.3.4",
