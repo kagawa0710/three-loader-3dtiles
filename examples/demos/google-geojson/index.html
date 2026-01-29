@@ -3,81 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Tiles Loader: Google Maps 3D Tiles with GeoJSON overlay</title>
+  <title>GeoJSON Draping | Three Loader 3DTiles</title>
+  <link rel="stylesheet" href="../shared-styles.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #canvas-parent {
-      width: 100vw;
-      height: 100vh;
-      touch-action: none;
-    }
-    #guide {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 300px;
-      padding: 1rem 2rem;
-      font-family:'Courier New', Courier, monospace;
-      line-height: 1.2;
-      background-color: white;
-      color: black;
-    }
-
-    #guide p {
-      margin-top: 10px;
-    }
-    #stats-widget  {
+    #stats-widget {
       position: fixed;
       top: 70px;
+      left: 10px;
       padding: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      z-index: 50;
     }
     #stats-widget div {
-      width: 300px;
+      width: 280px;
       word-break: break-all;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
     }
-    #button {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 12px;
-      border-radius: 50%;
-      margin-bottom: 0px;
-      background-color: #FFF;
-      opacity: .9;
-      z-index: 999;
-      box-shadow: 0 0 4px rgb(0 0 0 / 15%);
+    @media (max-width:640px) {
+      #stats-widget { display: none; }
     }
-    @media (max-width:480px) {
-      #guide, #stats-widget { display: none; }
-    }
-
-    #data-attribution {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      padding: 10px;
-      font-size: 14px;
-      background-color: rgba(255, 255, 255, 0.8);
-      color: black;
-      line-height: 20px;
+    .lil-gui {
+      --background-color: rgba(255, 255, 255, 0.1) !important;
+      --widget-color: rgba(255, 255, 255, 0.15) !important;
+      --text-color: #fff !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18) !important;
+      border-radius: 12px !important;
     }
   </style>
 </head>
-<body>
+<body class="demo-page">
   <div id="canvas-parent"></div>
+  <a href="../index.html" class="back-link">Back to Demos</a>
   <div id="stats-widget"></div>
-  <div id="data-attribution">
-    <p>Example ported from <a href="https://deck.gl/examples/google-3d-tiles" target="_blank">Deck.gl.</a></p>
-    <p>Draping algorithm by <a href="https://ieeexplore.ieee.org/abstract/document/8811991" target="_blank">Trapp and Döllner.</a></p>
-    <p>Data attribution: <span id="copyright"></span></div></p>
+  <div class="attribution">
+    <p>Example from <a href="https://deck.gl/examples/google-3d-tiles" target="_blank">Deck.gl</a> | Algorithm by <a href="https://ieeexplore.ieee.org/abstract/document/8811991" target="_blank">Trapp & Döllner</a></p>
+    <p>Data: <span id="copyright"></span></p>
   </div>
 
 
@@ -175,7 +140,7 @@
     };
     
     function setQueryParams() {
-      if (window.location.hostname !== 'nytimes.github.io') {
+      if (window.location.hostname !== 'kagawa0710.github.io') {
         queryParams.set('googleApiKey', guiParams.googleApiKey);
       }
       queryParams.set('lat', guiParams.lat);
@@ -201,10 +166,10 @@
           renderer,
           viewport: getViewport(),
           options: {
-            googleApiKey: 
-              window.location.hostname === 'nytimes.github.io' ?
-              // restricted to only being used for Map Tiles API, and only on the domain nytimes.github.io
-              'AIzaSyD7mJdqBYNwSP6RUQcmstZ6DXfn3rf5wkM' :
+            googleApiKey:
+              window.location.hostname === 'kagawa0710.github.io' ?
+              // Set your own Google API key restricted to this domain
+              '' :
                queryParams.get('googleApiKey') ?? '',
             dracoDecoderPath: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco',
             basisTranscoderPath: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis',
@@ -310,7 +275,7 @@
     gui.add( guiParams, 'lat' )
     gui.add( guiParams, 'long')
     gui.add( guiParams, 'height')
-    if (window.location.hostname !== 'nytimes.github.io') {
+    if (window.location.hostname !== 'kagawa0710.github.io') {
       gui.add( guiParams, 'googleApiKey' )
     }
     gui.add( guiParams, 'enableDraping' )
@@ -326,6 +291,8 @@
 
     render();
   </script>
-  <a id="button" target="_blank" href="https://github.com/nytimes/three-loader-3dtiles/blob/main/examples/demos/google-geojson/index.html" title="View source code for demo"><img src="../ic_code_black_24dp.svg"></a>
+  <a class="source-btn" target="_blank" href="https://github.com/kagawa0710/three-loader-3dtiles/blob/dev/examples/demos/google-geojson/index.html" title="View source code">
+    <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+  </a>
 </body>
 </html>

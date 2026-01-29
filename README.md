@@ -1,31 +1,33 @@
-# three-loader-3dtiles  
+# three-loader-3dtiles
 ![license](https://img.shields.io/badge/License-Apache%202.0-yellow.svg) [![npm version](https://badge.fury.io/js/three-loader-3dtiles.svg)](https://badge.fury.io/js/three-loader-3dtiles)
-[![Build Status](https://drone.dv.nyt.net/api/badges/nytimes/three-loader-3dtiles/status.svg)](https://drone.dv.nyt.net/nytimes/three-loader-3dtiles)
 
 [Demos](#demos) &mdash;
 [Usage](#basic-usage) &mdash;
 [Roadmap](#roadmap) &mdash;
 [Contributing](#contributing) &mdash;
 [Docs](#docs) &mdash;
-[Alternatives](#alternatives)
+[Alternatives](#alternatives) &mdash;
+[日本語](README.ja.md)
 
-This is a [Three.js](https://threejs.org/) loader module for handling [OGC 3D Tiles](https://www.ogc.org/standards/3DTiles), created by [Cesium](https://github.com/CesiumGS/3d-tiles). It currently supports the two main formats:
+A [Three.js](https://threejs.org/) loader module for handling [OGC 3D Tiles](https://www.ogc.org/standards/3DTiles), created by [Cesium](https://github.com/CesiumGS/3d-tiles). It currently supports the two main formats:
 
 1. Batched 3D Model (b3dm) - based on glTF.
 2. Point cloud.
 
 Internally, the loader uses the [loaders.gl library](https://github.com/visgl/loaders.gl), which is part of the [vis.gl platform](https://vis.gl/), openly governed by the [Urban Computing Foundation](https://uc.foundation/). Cesium has [worked closely with loaders.gl](https://cesium.com/blog/2019/11/06/cesium-uber/) to create a platform-independent implementation of their 3D Tiles viewer.
 
-Development of this library started at The New York Times R&D as an effort to create a clean bridge between the 3D Tiles specification and the widely used 3D library Three.js. The library helps us deliver massive 3D and Geographical journalism to desktops and mobile readers alike. From **Re**porting to **Tele**porting!
+This fork is maintained by **gawatech** with updates for the latest Three.js and loaders.gl versions, Google Maps 3D Tiles support, and experimental GeoJSON draping features.
+
+> Originally developed by [The New York Times R&D](https://rd.nytimes.com) team.
 
 ---
 
 ## Demos
-* [Photogrammetry exported to 3D Tiles in RealityCapture](https://nytimes.github.io/three-loader-3dtiles/dist/web/examples/demos/realitycapture)
-* [LiDAR Point Cloud hosted as 3D Tiles in Cesium ION](https://nytimes.github.io/three-loader-3dtiles/dist/web/examples/demos/cesium)
-* [Map overlay with OpenStreetMap](https://nytimes.github.io/three-loader-3dtiles/dist/web/examples/demos/map-overlay)
-* [Google Maps Photorealistic 3D Tiles](https://nytimes.github.io/three-loader-3dtiles/dist/web/examples/demos/google-3dtiles)
-* [Google 3D Tiles with GeoJSON Draping (experimental)](https://nytimes.github.io/three-loader-3dtiles/dist/web/examples/demos/google-geojson)
+* [Photogrammetry exported to 3D Tiles in RealityCapture](https://kagawa0710.github.io/three-loader-3dtiles/examples/demos/realitycapture)
+* [LiDAR Point Cloud hosted as 3D Tiles in Cesium ION](https://kagawa0710.github.io/three-loader-3dtiles/examples/demos/cesium)
+* [Map overlay with OpenStreetMap](https://kagawa0710.github.io/three-loader-3dtiles/examples/demos/map-overlay)
+* [Google Maps Photorealistic 3D Tiles](https://kagawa0710.github.io/three-loader-3dtiles/examples/demos/google-3dtiles)
+* [Google 3D Tiles with GeoJSON Draping (experimental)](https://kagawa0710.github.io/three-loader-3dtiles/examples/demos/google-geojson)
 
 ---
 
@@ -122,7 +124,7 @@ The application script would be the same as in the ES Module example (when using
 See [here](examples/installation/webpack) for a complete webpack example.
 
 ### 4. A-Frame
-Refer to our dedicated A-Frame component: [aframe-loader-3dtiles-component](https://github.com/nytimes/aframe-loader-3dtiles-component).
+Refer to the A-Frame component: [aframe-loader-3dtiles-component](https://github.com/nytimes/aframe-loader-3dtiles-component) (original NYTimes repository).
 
 ### 5. React-Three-Fiber
 Refer to [examples/r3f](examples/r3f).
@@ -174,8 +176,8 @@ npm run test
 
 
 ## Docs
-* API documentation is available [here](docs/three-loader-3dtiles.md). 
-* Code for the demos is in [examples/demos](https://github.com/nytimes/three-loader-3dtiles/tree/main/examples/demos).
+* API documentation is available [here](docs/three-loader-3dtiles.md).
+* Code for the demos is in [examples/demos](https://github.com/kagawa0710/three-loader-3dtiles/tree/dev/examples/demos).
 
 ## Alternatives
 To our knowledge, this is the only [loaders.gl](https://github.com/visgl/loaders.gl)-based Three.js library, but there are several implementations of 3D Tiles for Three.js. Notable examples:
@@ -184,6 +186,10 @@ To our knowledge, this is the only [loaders.gl](https://github.com/visgl/loaders
  - [ebeaufay / 3DTilesViewer](https://github.com/ebeaufay/3DTilesViewer)
  - [iTowns](https://github.com/iTowns/itowns)
 
- ---
+---
 
-> This repository is maintained by the Research & Development team at The New York Times and is provided as-is for your own use. For more information about R&D at the Times visit [rd.nytimes.com](https://rd.nytimes.com)
+## Credits
+
+This is a fork of [nytimes/three-loader-3dtiles](https://github.com/nytimes/three-loader-3dtiles), originally developed by the Research & Development team at The New York Times. For more information about the original project, visit [rd.nytimes.com](https://rd.nytimes.com).
+
+This fork is maintained by **gawatech** and provided as-is for your own use.

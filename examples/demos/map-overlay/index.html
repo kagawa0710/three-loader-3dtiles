@@ -3,84 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Tiles Loader: Map overlay</title>
+  <title>Map Overlay | Three Loader 3DTiles</title>
+  <link rel="stylesheet" href="../shared-styles.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #canvas-parent {
-      width: 100vw;
-      height: 100vh;
-      touch-action: none;
-    }
-    #guide {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 300px;
-      padding: 1rem 2rem;
-      font-family:'Courier New', Courier, monospace;
-      line-height: 1.2;
-      background-color: white;
-      color: black;
-    }
-
-    #guide p {
-      margin-top: 10px;
-    }
-
     #stats-widget {
-      position: absolute;
+      position: fixed;
       top: 70px;
       left: 10px;
-      background-color: rgb(255 255 255 / 83%);
       padding: 10px;
-      width: 300px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      width: 280px;
       word-break: break-all;
       visibility: hidden;
+      z-index: 50;
     }
-    #button {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 12px;
-      border-radius: 50%;
-      margin-bottom: 0px;
-      background-color: #FFF;
-      opacity: .9;
-      z-index: 999;
-      box-shadow: 0 0 4px rgb(0 0 0 / 15%);
-    }
-    @media (max-width:480px) {
-      #guide, #stats-widget { display: none; }
+    @media (max-width:640px) {
+      .info-panel, #stats-widget { display: none; }
     }
   </style>
 </head>
-<body>
+<body class="demo-page">
   <div id="canvas-parent"></div>
+  <a href="../index.html" class="back-link">Back to Demos</a>
   <div id="stats-widget"></div>
 
-  <div id="guide">
-    <p>
-    <span id="example-desc">
-      Map overlay provided by <b>OpenStreetMap</b> using the <b>geo-three</b> library.
-    </span>
-    </p>
-    <p>
-    Use arrow keys, mouse wheel/trackpad, or right click to move around, and left click and drag to turn/rotate the camera.
-    </p>
-    <p>
-      <u>Available URL parameters:</u>
-      <ul>
-        <li><b>tilesetUrl</b>: Load another tileset json.</li>
-      </ul>
-    </p>
+  <div class="info-panel">
+    <h2>Map Overlay</h2>
+    <p id="example-desc">Map overlay provided by <strong>OpenStreetMap</strong> using the <strong>geo-three</strong> library.</p>
+    <div class="controls">
+      <p><kbd>Arrows</kbd> / <kbd>Scroll</kbd> - Move</p>
+      <p><kbd>Right click + drag</kbd> - Pan</p>
+      <p><kbd>Left click + drag</kbd> - Rotate</p>
+    </div>
+    <div class="section">
+      <div class="section-title">URL Parameters</div>
+      <p><kbd>tilesetUrl</kbd> - Custom tileset JSON</p>
+    </div>
   </div>
 
   <script type='module'>
@@ -253,6 +212,8 @@
 
     render();
   </script>
-  <a id="button" target="_blank" href="https://github.com/nytimes/three-loader-3dtiles/blob/master/examples/demos/map-overlay/index.html" title="View source code for demo" style=""><img src="../ic_code_black_24dp.svg"></a>
+  <a class="source-btn" target="_blank" href="https://github.com/kagawa0710/three-loader-3dtiles/blob/dev/examples/demos/map-overlay/index.html" title="View source code">
+    <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+  </a>
 </body>
 </html>
