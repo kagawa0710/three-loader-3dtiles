@@ -1,6 +1,6 @@
 {
   "name": "@kagawa0710/three-loader-3dtiles",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A 3D Tiles loader for Three.js (fork of @nytimes/three-loader-3dtiles with updated dependencies)",
   "main": "dist/lib/three-loader-3dtiles.umd.cjs",
   "module": "dist/lib/three-loader-3dtiles.js",
