@@ -143,6 +143,53 @@ interface GeoJSONLoaderProps {
   featureToColor?: FeatureToColor;
 }
 
+/** Feature metadata from 3D Tiles (batch table or EXT_structural_metadata) */
+interface TileFeatureMetadata {
+  /** Batch table properties (legacy B3DM format) */
+  batchTable?: Record<string, (string | number)[]>;
+  /** Structural metadata from EXT_structural_metadata extension (3D Tiles 1.1/Next) */
+  structuralMetadata?: {
+    schema?: unknown;
+    propertyTables?: unknown[];
+  };
+  /** Feature count in the tile */
+  featureCount?: number;
+}
+
+/** Information about a specific tile */
+interface TileInfo {
+  /** Tile ID */
+  id: string;
+  /** Tile depth in the hierarchy */
+  depth: number;
+  /** Whether the tile content is loaded */
+  contentLoaded: boolean;
+  /** Whether the tile is currently visible */
+  visible: boolean;
+  /** Geometric error of the tile */
+  geometricError: number;
+  /** Feature metadata if available */
+  metadata?: TileFeatureMetadata;
+}
+
+/** Result of a pick operation */
+interface PickResult {
+  /** The tile that was picked */
+  tileId: string;
+  /** The Three.js object that was intersected */
+  object: Object3D;
+  /** World-space intersection point */
+  point: Vector3;
+  /** Distance from camera to intersection */
+  distance: number;
+  /** Face index of the intersected triangle */
+  faceIndex?: number;
+  /** Feature/batch ID if available */
+  featureId?: number;
+  /** Feature properties if available */
+  properties?: Record<string, unknown>;
+}
+
 /** Runtime methods that can be used once a tileset is loaded */
 interface Runtime {
   /** 
@@ -204,6 +251,16 @@ interface Runtime {
   update(dt:Number, camera:Camera): void;
   /** Dispose of all of the tileset's assets in memory. */
   dispose(): void;
+  /** Get all currently visible tiles with their metadata */
+  getVisibleTiles(): TileInfo[];
+  /** Get metadata for a specific tile by ID */
+  getTileMetadata(tileId: string): TileFeatureMetadata | null;
+  /** Get feature properties at a specific index within a tile */
+  getFeatureProperties(tileId: string, featureIndex: number): Record<string, unknown> | null;
+  /** Pick a feature at the given screen coordinates */
+  pick(screenX: number, screenY: number, camera: Camera): PickResult | null;
+  /** Pick all features intersected by a ray at the given screen coordinates */
+  pickAll(screenX: number, screenY: number, camera: Camera): PickResult[];
 }
 
 export type { 
@@ -214,6 +271,9 @@ export type {
   GeoJSONLoaderProps, 
   FeatureToColor, 
   DrapingShaderOptions,
-  Viewport
+  Viewport,
+  TileFeatureMetadata,
+  TileInfo,
+  PickResult
 };
 export { PointCloudColoring, Shading }

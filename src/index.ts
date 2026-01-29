@@ -1,7 +1,7 @@
 import { load } from '@loaders.gl/core';
 import { CesiumIonLoader, Tiles3DLoader } from '@loaders.gl/3d-tiles';
 import { _GeoJSONLoader } from '@loaders.gl/json';
-import { Tileset3D, TILE_TYPE, TILE_CONTENT_STATE } from '@loaders.gl/tiles';
+import { Tileset3D, Tile3D, TILE_TYPE, TILE_CONTENT_STATE } from '@loaders.gl/tiles';
 import { CullingVolume, Plane } from '@math.gl/culling';
 import  { _PerspectiveFrustum as PerspectiveFrustum}  from '@math.gl/culling';
 import { Matrix4 as MathGLMatrix4, toRadians } from '@math.gl/core';
@@ -30,7 +30,8 @@ import {
   Euler,
   Quaternion,
   NormalBlending,
-  WebGLRenderer
+  WebGLRenderer,
+  Raycaster
 } from 'three';
 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -49,7 +50,10 @@ import type {
   GeoJSONLoaderProps, 
   FeatureToColor, 
   DrapingShaderOptions,
-  Viewport
+  Viewport,
+  TileFeatureMetadata,
+  TileInfo,
+  PickResult
 } from './types';
 import { PointCloudColoring, Shading } from './types';
 import { BinaryFeatureCollection, FeatureCollection } from '@loaders.gl/schema';
@@ -59,6 +63,9 @@ const gradientTexture = typeof document != 'undefined' ? Util.generateGradientTe
 
 const grayscale = Gradients.GRAYSCALE;
 const grayscaleTexture = typeof document != 'undefined' ? Util.generateGradientTexture(grayscale) : null;
+
+const DRACO_CDN_PATH = 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/draco/gltf';
+const BASIS_CDN_PATH = 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/basis';
 
 const defaultOptions: LoaderOptions = {
   throttleRequests: true,
@@ -81,8 +88,8 @@ const defaultOptions: LoaderOptions = {
   wireframe: false,
   debug: false,
   gltfLoader: null,
-  basisTranscoderPath: null,
-  dracoDecoderPath: null,
+  basisTranscoderPath: BASIS_CDN_PATH,
+  dracoDecoderPath: DRACO_CDN_PATH,
   material: null,
   contentPostProcess: undefined,
   preloadTilesCount: null,
@@ -681,6 +688,52 @@ class Loader3DTiles {
             dracoLoader.dispose();
           }
         },
+        getVisibleTiles: (): TileInfo[] => {
+          return (tileset.tiles as Tile3D[])
+            .filter(tile => tile.selected && tile.content)
+            .map(tile => ({
+              id: tile.id,
+              depth: tile.depth,
+              contentLoaded: tile.contentState === TILE_CONTENT_STATE.READY,
+              visible: renderMap[tile.id]?.visible ?? false,
+              geometricError: tile.lodMetricValue,
+              metadata: extractTileMetadata(tile)
+            }));
+        },
+        getTileMetadata: (tileId: string): TileFeatureMetadata | null => {
+          const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+          if (!tile || !tile.content) {
+            return null;
+          }
+          return extractTileMetadata(tile);
+        },
+        getFeatureProperties: (tileId: string, featureIndex: number): Record<string, unknown> | null => {
+          const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+          if (!tile || !tile.content) {
+            return null;
+          }
+          const metadata = extractTileMetadata(tile);
+          if (!metadata) {
+            return null;
+          }
+          if (metadata.batchTable) {
+            const properties: Record<string, unknown> = {};
+            for (const [key, values] of Object.entries(metadata.batchTable)) {
+              if (Array.isArray(values) && featureIndex < values.length) {
+                properties[key] = values[featureIndex];
+              }
+            }
+            return Object.keys(properties).length > 0 ? properties : null;
+          }
+          return null;
+        },
+        pick: (screenX: number, screenY: number, camera: Camera): PickResult | null => {
+          const results = pickTiles(screenX, screenY, camera, root, renderMap, tileset, viewport);
+          return results.length > 0 ? results[0] : null;
+        },
+        pickAll: (screenX: number, screenY: number, camera: Camera): PickResult[] => {
+          return pickTiles(screenX, screenY, camera, root, renderMap, tileset, viewport);
+        },
       },
     };
   }
@@ -917,6 +970,128 @@ function cameraChanged(camera:Camera, lastCameraTransform:Matrix4) {
   return !camera.matrixWorld.equals(lastCameraTransform);
 }
 
+function extractTileMetadata(tile): TileFeatureMetadata | null {
+  if (!tile.content) {
+    return null;
+  }
+
+  const metadata: TileFeatureMetadata = {};
+
+  if (tile.content.batchTableJson) {
+    metadata.batchTable = tile.content.batchTableJson;
+  }
+
+  if (tile.content.header?.batchLength) {
+    metadata.featureCount = tile.content.header.batchLength;
+  }
+
+  if (tile.content.gltf?.extensions?.EXT_structural_metadata) {
+    metadata.structuralMetadata = {
+      schema: tile.content.gltf.extensions.EXT_structural_metadata.schema,
+      propertyTables: tile.content.gltf.extensions.EXT_structural_metadata.propertyTables
+    };
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function pickTiles(
+  screenX: number,
+  screenY: number,
+  camera: Camera,
+  root: Group,
+  renderMap: Record<string, Object3D>,
+  tileset: Tileset3D,
+  viewport: Viewport
+): PickResult[] {
+  const raycaster = new Raycaster();
+  const mouse = new Vector2(
+    (screenX / viewport.width) * 2 - 1,
+    -(screenY / viewport.height) * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObject(root, true);
+  const results: PickResult[] = [];
+
+  for (const intersect of intersects) {
+    const tileId = findTileIdForObject(intersect.object, renderMap);
+    if (!tileId) continue;
+
+    const tile = (tileset.tiles as Tile3D[]).find(t => t.id === tileId);
+    if (!tile) continue;
+
+    const featureId = getFeatureIdFromIntersection(intersect);
+    let properties: Record<string, unknown> | undefined;
+
+    if (featureId !== undefined && tile.content?.batchTableJson) {
+      properties = {};
+      for (const [key, values] of Object.entries(tile.content.batchTableJson)) {
+        if (Array.isArray(values) && featureId < values.length) {
+          properties[key] = values[featureId];
+        }
+      }
+      if (Object.keys(properties).length === 0) {
+        properties = undefined;
+      }
+    }
+
+    results.push({
+      tileId,
+      object: intersect.object,
+      point: intersect.point,
+      distance: intersect.distance,
+      faceIndex: intersect.faceIndex,
+      featureId,
+      properties
+    });
+  }
+
+  return results;
+}
+
+function findTileIdForObject(object: Object3D, renderMap: Record<string, Object3D>): string | null {
+  let current: Object3D | null = object;
+  while (current) {
+    for (const [tileId, tileObject] of Object.entries(renderMap)) {
+      if (current === tileObject || isDescendant(current, tileObject)) {
+        return tileId;
+      }
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function isDescendant(object: Object3D, potentialAncestor: Object3D): boolean {
+  let current: Object3D | null = object.parent;
+  while (current) {
+    if (current === potentialAncestor) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+function getFeatureIdFromIntersection(intersect: { object: Object3D; faceIndex?: number }): number | undefined {
+  const mesh = intersect.object as Mesh;
+  if (!mesh.geometry) return undefined;
+
+  const batchIdAttr = mesh.geometry.attributes['_BATCHID'] || mesh.geometry.attributes['_batchid'];
+  if (!batchIdAttr && intersect.faceIndex === undefined) return undefined;
+
+  if (batchIdAttr && intersect.faceIndex !== undefined) {
+    const index = mesh.geometry.index;
+    if (index) {
+      const vertexIndex = index.getX(intersect.faceIndex * 3);
+      return batchIdAttr.getX(vertexIndex);
+    } else {
+      return batchIdAttr.getX(intersect.faceIndex * 3);
+    }
+  }
+
+  return undefined;
+}
+
 function collectAttributions(tiles) {
   // attribution guidelines: https://developers.google.com/maps/documentation/tile/create-renderer#display-attributions
   
@@ -953,5 +1128,8 @@ export {
    LoaderOptions, 
    LoaderProps,
    GeoJSONLoaderProps,
-   DrapingShaderOptions
+   DrapingShaderOptions,
+   TileFeatureMetadata,
+   TileInfo,
+   PickResult
 };
