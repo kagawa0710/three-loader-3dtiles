@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scroll Story | Three Loader 3DTiles</title>
+  <link rel="stylesheet" href="../shared-styles.css">
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0f;
+      color: white;
+      font-family: system-ui, sans-serif;
+    }
+    #canvas-parent {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    #scroller {
+      position: relative;
+      z-index: 10;
+    }
+    .story-section {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 0 10vw;
+      box-sizing: border-box;
+    }
+    .story-section.center {
+      justify-content: center;
+      text-align: center;
+    }
+    .story-section.right {
+      justify-content: flex-end;
+    }
+    .story-card {
+      max-width: 400px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .story-card h2 {
+      font-size: 1.8rem;
+      margin: 0 0 1rem 0;
+    }
+    .story-card p {
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.6;
+      margin: 0;
+    }
+    .title-section h1 {
+      font-size: 3rem;
+      margin: 0 0 1rem 0;
+    }
+    .title-section .subtitle {
+      font-size: 1.5rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .title-section .status {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 1rem;
+    }
+    .scroll-hint {
+      margin-top: 3rem;
+      animation: bounce 2s infinite;
+    }
+    .scroll-hint svg {
+      width: 32px;
+      height: 32px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(10px); }
+    }
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .badge {
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    #progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+      z-index: 100;
+      transition: width 0.15s;
+    }
+    .back-link {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 100;
+    }
+    #attribution {
+      position: fixed;
+      bottom: 1rem;
+      left: 1rem;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.3);
+      z-index: 100;
+    }
+    /* Camera Helper Panel */
+    #camera-helper {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      width: 320px;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 100;
+      font-size: 0.875rem;
+      display: none;
+    }
+    #camera-helper.visible { display: block; }
+    #camera-helper header {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #camera-helper header h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1rem;
+    }
+    #camera-helper header p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.75rem;
+    }
+    #camera-helper .panel-body {
+      padding: 1rem;
+    }
+    #camera-helper .actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    #camera-helper button {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    #camera-helper .btn-primary {
+      background: #0891b2;
+      color: white;
+    }
+    #camera-helper .btn-primary:hover { background: #0e7490; }
+    #camera-helper .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      flex: 0;
+      padding: 0.5rem 0.75rem;
+    }
+    #camera-helper .btn-export {
+      background: #7c3aed;
+      color: white;
+    }
+    #camera-helper .btn-export:hover { background: #6d28d9; }
+    #camera-helper .btn-export:disabled {
+      background: rgba(100, 100, 100, 0.5);
+      cursor: not-allowed;
+    }
+    #keyframes-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    .keyframe-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    .keyframe-item .info span {
+      color: #22d3ee;
+    }
+    .keyframe-item .pos {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    .keyframe-item .remove-btn {
+      background: none;
+      border: none;
+      color: #f87171;
+      cursor: pointer;
+      padding: 0.25rem;
+      flex: 0;
+    }
+    .empty-state {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.4);
+      padding: 1rem;
+    }
+    #toggle-helper {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 99;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    #toggle-helper:hover { background: rgba(255, 255, 255, 0.2); }
+    #toggle-helper.hidden-when-panel { display: none; }
+  </style>
+</head>
+<body>
+  <div id="progress-bar"></div>
+  <div id="canvas-parent"></div>
+  <a href="../index.html" class="back-link">Back to Demos</a>
+
+  <button id="toggle-helper">Camera Helper</button>
+
+  <div id="camera-helper">
+    <header>
+      <h3>Camera Path Editor</h3>
+      <p>カメラを動かして位置を記録</p>
+    </header>
+    <div class="panel-body">
+      <div class="actions">
+        <button class="btn-primary" id="add-keyframe">+ Add Keyframe</button>
+        <button class="btn-danger" id="clear-keyframes" title="Clear all">🗑</button>
+      </div>
+      <div id="keyframes-list">
+        <div class="empty-state">キーフレームがありません</div>
+      </div>
+      <button class="btn-export" id="export-json" disabled>Export JSON</button>
+    </div>
+  </div>
+
+  <div id="scroller">
+    <section class="story-section center">
+      <div class="title-section">
+        <h1>真鶴・岩の道祖神</h1>
+        <p class="subtitle">スクロールして探索</p>
+        <p class="status" id="status">Loading...</p>
+        <div class="scroll-hint">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="story-section left">
+      <div class="story-card">
+        <h2>3D Tilesストリーミング</h2>
+        <p>3D Tilesは大規模な3D地理空間データセットをストリーミングするためのOGC標準規格です。</p>
+      </div>
+    </section>
+
+    <section class="story-section right">
+      <div class="story-card">
+        <h2>スクロール連動カメラ</h2>
+        <p>カメラはスクロール位置に同期して事前定義されたパスに沿って移動します。</p>
+      </div>
+    </section>
+
+    <section class="story-section left">
+      <div class="story-card">
+        <h2>three-story-controls</h2>
+        <p>ScrollControlsを使用してスクロールとカメラアニメーションを連動させています。</p>
+      </div>
+    </section>
+
+    <section class="story-section center">
+      <div class="title-section">
+        <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Powered by</h2>
+        <div class="badge-list">
+          <span class="badge">@kagawa0710/three-loader-3dtiles</span>
+          <span class="badge">@kagawa0710/three-story-controls</span>
+          <span class="badge">Three.js</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="attribution">3D Model: 真鶴・岩の道祖神 (Sketchfab)</div>
+
+  <script type="module">
+    import {
+      Scene,
+      PerspectiveCamera,
+      WebGLRenderer,
+      Clock,
+      Box3,
+      Vector3,
+      AnimationClip,
+      SRGBColorSpace,
+    } from 'three';
+
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { Loader3DTiles } from '../../../src/index.ts';
+    import { CameraRig, ScrollControls } from 'three-story-controls';
+
+    const queryParams = new URLSearchParams(document.location.search);
+    const editMode = queryParams.get('edit') === 'true';
+
+    const canvasParent = document.querySelector('#canvas-parent');
+    const scroller = document.querySelector('#scroller');
+    const statusEl = document.querySelector('#status');
+    const progressBar = document.querySelector('#progress-bar');
+    const cameraHelper = document.querySelector('#camera-helper');
+    const toggleHelper = document.querySelector('#toggle-helper');
+
+    // Camera helper state
+    let keyframes = [];
+    let camera;
+
+    // Toggle camera helper
+    if (editMode) {
+      cameraHelper.classList.add('visible');
+      toggleHelper.classList.add('hidden-when-panel');
+    }
+
+    toggleHelper.addEventListener('click', () => {
+      cameraHelper.classList.toggle('visible');
+      toggleHelper.classList.toggle('hidden-when-panel');
+    });
+
+    // Camera helper functions
+    function updateKeyframesList() {
+      const list = document.querySelector('#keyframes-list');
+      const exportBtn = document.querySelector('#export-json');
+
+      if (keyframes.length === 0) {
+        list.innerHTML = '<div class="empty-state">キーフレームがありません</div>';
+        exportBtn.disabled = true;
+        return;
+      }
+
+      exportBtn.disabled = keyframes.length < 2;
+
+      list.innerHTML = keyframes.map((kf, i) => `
+        <div class="keyframe-item">
+          <div class="info">
+            <span>#${i + 1}</span> t=${kf.time}s
+            <div class="pos">pos: [${kf.position.map(v => v.toFixed(1)).join(', ')}]</div>
+          </div>
+          <button class="remove-btn" data-index="${i}">✕</button>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          keyframes.splice(index, 1);
+          // Recalculate times
+          keyframes.forEach((kf, i) => {
+            kf.time = i * 3;
+          });
+          updateKeyframesList();
+        });
+      });
+    }
+
+    document.querySelector('#add-keyframe').addEventListener('click', () => {
+      if (!camera) return;
+
+      const time = keyframes.length * 3;
+      keyframes.push({
+        time,
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        quaternion: [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w],
+      });
+      updateKeyframesList();
+    });
+
+    document.querySelector('#clear-keyframes').addEventListener('click', () => {
+      keyframes = [];
+      updateKeyframesList();
+    });
+
+    document.querySelector('#export-json').addEventListener('click', () => {
+      if (keyframes.length < 2) return;
+
+      const cameraData = {
+        duration: keyframes[keyframes.length - 1].time,
+        tracks: [
+          {
+            name: 'Translation.position',
+            times: keyframes.map(k => k.time),
+            values: keyframes.flatMap(k => k.position),
+            type: 'vector',
+          },
+          {
+            name: 'Rotation.quaternion',
+            times: keyframes.map(k => k.time),
+            values: keyframes.flatMap(k => k.quaternion),
+            type: 'quaternion',
+          },
+        ],
+      };
+
+      const blob = new Blob([JSON.stringify(cameraData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'camera-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Default camera data
+    const defaultCameraData = {
+      duration: 12,
+      tracks: [
+        {
+          name: 'Translation.position',
+          times: [0, 3, 6, 9, 12],
+          values: [
+            0, 1.5, 5,
+            3, 1, 3,
+            -2, 0.8, 2,
+            2, 0.5, 1.5,
+            0, 0.3, 1
+          ],
+          type: 'vector',
+        },
+        {
+          name: 'Rotation.quaternion',
+          times: [0, 3, 6, 9, 12],
+          values: [
+            0, 0, 0, 1,
+            0, 0.3, 0, 0.954,
+            0, -0.2, 0, 0.98,
+            0, 0.15, 0, 0.989,
+            0, 0, 0, 1
+          ],
+          type: 'quaternion',
+        },
+      ],
+    };
+
+    const scene = new Scene();
+    camera = new PerspectiveCamera(35, 1, 0.01, 1000);
+
+    const renderer = new WebGLRenderer({ antialias: true });
+    renderer.outputColorSpace = SRGBColorSpace;
+    renderer.setClearColor(0x0a0a0f);
+    canvasParent.appendChild(renderer.domElement);
+
+    const clock = new Clock();
+    let tilesRuntime;
+    let controls;
+    let orbitControls;
+
+    async function init() {
+      try {
+        statusEl.textContent = 'Loading 3D Tiles...';
+
+        const tilesetUrl = queryParams.get('tilesetUrl') ||
+          './tileset/tileset.json';
+
+        const result = await Loader3DTiles.load({
+          url: tilesetUrl,
+          viewport: getViewport(),
+          options: {
+            dracoDecoderPath: 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/draco',
+            basisTranscoderPath: 'https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/basis',
+            maximumScreenSpaceError: 32,
+            resetTransform: true,
+          },
+        });
+
+        const { model, runtime } = result;
+        tilesRuntime = runtime;
+
+        // Center the model
+        scene.add(model);
+        const box = new Box3().setFromObject(model);
+        const center = box.getCenter(new Vector3());
+        const size = box.getSize(new Vector3());
+        model.position.sub(center);
+
+        console.log('Model size:', size);
+
+        // Load camera data
+        let cameraData = defaultCameraData;
+        const cameraDataUrl = queryParams.get('cameraData');
+        if (cameraDataUrl) {
+          try {
+            const res = await fetch(cameraDataUrl);
+            if (res.ok) cameraData = await res.json();
+          } catch (e) {
+            console.warn('Failed to load camera data:', e);
+          }
+        }
+
+        // Setup controls
+        if (editMode) {
+          // Edit mode: use OrbitControls
+          orbitControls = new OrbitControls(camera, renderer.domElement);
+          orbitControls.enableDamping = true;
+          orbitControls.target.set(0, 0, 0);
+
+          const maxDim = Math.max(size.x, size.y, size.z);
+          camera.position.set(maxDim, maxDim * 0.5, maxDim * 1.5);
+          orbitControls.update();
+
+          scroller.style.pointerEvents = 'none';
+        } else {
+          // View mode: use ScrollControls
+          const clip = AnimationClip.parse(cameraData);
+          const rig = new CameraRig(camera, scene);
+          rig.setAnimationClip(clip);
+          rig.setAnimationTime(0);
+
+          controls = new ScrollControls(rig, {
+            scrollElement: scroller,
+            dampingFactor: 0.05,
+            startOffset: '0px',
+            endOffset: '0px',
+          });
+          controls.enable();
+        }
+
+        statusEl.textContent = 'Ready!';
+
+        render();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function render(t = 0) {
+      requestAnimationFrame(render);
+
+      const dt = clock.getDelta();
+
+      if (orbitControls) {
+        orbitControls.update();
+      } else if (controls) {
+        controls.update(t);
+      }
+
+      if (tilesRuntime) {
+        tilesRuntime.update(dt, camera);
+      }
+
+      renderer.render(scene, camera);
+
+      // Update progress bar
+      if (!editMode) {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = Math.min(100, (scrollTop / docHeight) * 100);
+        progressBar.style.width = progress + '%';
+      }
+    }
+
+    function getViewport() {
+      return {
+        width: canvasParent.clientWidth,
+        height: canvasParent.clientHeight,
+        devicePixelRatio: window.devicePixelRatio,
+      };
+    }
+
+    function onResize() {
+      renderer.setSize(canvasParent.clientWidth, canvasParent.clientHeight);
+      camera.aspect = canvasParent.clientWidth / canvasParent.clientHeight;
+      camera.updateProjectionMatrix();
+      tilesRuntime?.setViewport(getViewport());
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+
+    init();
+  </script>
+</body>
+</html>
