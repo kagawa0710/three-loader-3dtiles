@@ -498,25 +498,30 @@
         const { model, runtime } = result;
         tilesRuntime = runtime;
 
-        // Center the model
         scene.add(model);
+
+        // Get model size for edit mode camera positioning
         const box = new Box3().setFromObject(model);
         const center = box.getCenter(new Vector3());
         const size = box.getSize(new Vector3());
-        model.position.sub(center);
-
         console.log('Model size:', size);
+
+        // Only center in edit mode, not in view mode (camera data expects original position)
+        if (editMode) {
+          model.position.sub(center);
+        }
 
         // Load camera data
         let cameraData = defaultCameraData;
-        const cameraDataUrl = queryParams.get('cameraData');
-        if (cameraDataUrl) {
-          try {
-            const res = await fetch(cameraDataUrl);
-            if (res.ok) cameraData = await res.json();
-          } catch (e) {
-            console.warn('Failed to load camera data:', e);
+        const cameraDataUrl = queryParams.get('cameraData') || './camera-data.json';
+        try {
+          const res = await fetch(cameraDataUrl);
+          if (res.ok) {
+            const rawData = await res.json();
+            cameraData = rawData.animationClip || rawData;
           }
+        } catch (e) {
+          console.warn('Failed to load camera data:', e);
         }
 
         // Setup controls
