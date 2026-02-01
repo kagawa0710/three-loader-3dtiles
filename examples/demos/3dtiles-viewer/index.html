@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Tiles Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      width: 100vw; 
+      height: 100vh; 
+      overflow: hidden; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      touch-action: none;
+    }
+    
+    #drop-zone {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      color: white;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+    #drop-zone.hidden { opacity: 0; pointer-events: none; }
+    #drop-zone.dragover { background: #16213e; }
+    
+    .drop-content {
+      text-align: center;
+      padding: 2rem;
+    }
+    .drop-content h1 { font-size: 2rem; margin-bottom: 1rem; }
+    .drop-content p { color: #888; margin-bottom: 1.5rem; }
+    
+    #file-input { display: none; }
+    .upload-btn {
+      padding: 12px 24px;
+      background: #4a69bd;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover { background: #6a89cc; }
+    
+    .canvas-parent { 
+      width: 100vw; 
+      height: 100vh; 
+      touch-action: none;
+    }
+    
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 50;
+    }
+    #toolbar.hidden { display: none; }
+    
+    .toolbar-btn {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toolbar-btn:hover { background: white; }
+    .toolbar-btn.active { background: #4a69bd; color: white; }
+    
+    #info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 280px;
+      padding: 1rem;
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    #info.hidden { display: none; }
+    #info h3 { margin-bottom: 0.5rem; }
+    #info p { color: #666; margin-bottom: 0.5rem; }
+    #info kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #eee;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    
+    #stats {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-family: monospace;
+      font-size: 11px;
+      border-radius: 4px;
+      z-index: 50;
+    }
+    #stats.hidden { display: none; }
+    
+    #preview-container {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1a1a2e;
+      z-index: 200;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    #preview-container.hidden { display: none; }
+    
+    .preview-content {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+      color: white;
+    }
+    .preview-content h1 { margin-bottom: 1rem; }
+    .preview-content p { line-height: 1.6; margin-bottom: 1rem; color: #aaa; }
+    
+    .preview-scene { position: relative; }
+    .preview-canvas-parent {
+      width: 100vw;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      z-index: -1;
+    }
+    .preview-canvas-parent canvas { opacity: 0; }
+    .preview-scroller {
+      width: 100vw;
+      height: 500vh;
+    }
+    
+    #close-preview {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 210;
+    }
+  </style>
+</head>
+<body>
+  <div id="drop-zone">
+    <div class="drop-content">
+      <h1>3D Tiles Viewer</h1>
+      <p>3Dtilesフォルダをドラッグ＆ドロップ<br>または下のボタンでフォルダを選択</p>
+      <input type="file" id="file-input" webkitdirectory directory multiple>
+      <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+        フォルダを選択
+      </button>
+    </div>
+  </div>
+  
+  <div id="toolbar" class="hidden">
+    <button class="toolbar-btn" id="btn-orbit">Orbit</button>
+    <button class="toolbar-btn active" id="btn-freemove">FreeMove</button>
+    <button class="toolbar-btn" id="btn-preview">Preview</button>
+    <button class="toolbar-btn" id="btn-reset">Reset</button>
+  </div>
+  
+  <div id="info" class="hidden">
+    <h3>操作方法</h3>
+    <p>
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 矢印キー: 移動<br>
+      <kbd>E</kbd><kbd>Q</kbd>: 上下移動<br>
+      マウスドラッグ: 回転<br>
+      ホイール: 前後移動
+    </p>
+    <p><kbd>+</kbd>ボタンでカメラ位置を記録</p>
+  </div>
+  
+  <div id="stats" class="hidden">Loading...</div>
+  
+  <div class="canvas-parent"></div>
+  
+  <div id="preview-container" class="hidden">
+    <button id="close-preview">閉じる</button>
+    <div class="preview-content">
+      <h1>スクロールプレビュー</h1>
+      <p>スクロールしてカメラアニメーションを確認できます。</p>
+    </div>
+    <div class="preview-scene">
+      <div class="preview-canvas-parent"></div>
+      <div class="preview-scroller"></div>
+    </div>
+    <div class="preview-content">
+      <p>プレビュー終了</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { CameraRig, FreeMovementControls, CameraHelper, ScrollControls, ThreeDOFControls } from '../../../../../three-story-controls/dist/three-story-controls.esm.js';
+    import { Loader3DTiles } from '../../../../src/index.ts';
+
+    // Prevent browser back on trackpad swipe
+    document.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Prevent browser back gesture
+    window.addEventListener('popstate', (e) => {
+      history.pushState(null, '', location.href);
+    });
+    history.pushState(null, '', location.href);
+
+    let scene, camera, renderer, runtime, model;
+    let rig, freeControls, orbitControls, cameraHelper;
+    let currentMode = 'freemove';
+    let loadedFiles = null;
+
+    const canvasParent = document.querySelector('.canvas-parent');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const toolbar = document.getElementById('toolbar');
+    const info = document.getElementById('info');
+    const stats = document.getElementById('stats');
+
+    function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x333333);
+
+      camera = new THREE.PerspectiveCamera(60, canvasParent.clientWidth / canvasParent.clientHeight, 0.1, 1000);
+      camera.position.set(0, 2, 6);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(canvasParent.clientWidth, canvasParent.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      canvasParent.appendChild(renderer.domElement);
+
+      const hemiLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+      scene.add(hemiLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(1, 1, 1);
+      scene.add(dirLight);
+
+      const grid = new THREE.GridHelper(10, 10);
+      scene.add(grid);
+
+      // OrbitControls
+      orbitControls = new OrbitControls(camera, renderer.domElement);
+      orbitControls.enableDamping = true;
+      orbitControls.enabled = false;
+
+      // FreeMovementControls
+      rig = new CameraRig(camera, scene);
+      freeControls = new FreeMovementControls(rig, {
+        domElement: canvasParent,
+        pointerScaleFactor: 0.01,
+        keyboardScaleFactor: 0.05,
+        wheelScaleFactor: 0.01,
+      });
+      freeControls.enable();
+
+      cameraHelper = new CameraHelper(rig, freeControls, renderer.domElement);
+
+      animate();
+    }
+
+    function animate(t) {
+      requestAnimationFrame(animate);
+
+      if (currentMode === 'orbit') {
+        orbitControls.update();
+      } else if (currentMode === 'freemove') {
+        freeControls.update(t);
+        cameraHelper.update(t);
+      }
+
+      if (runtime) {
+        runtime.update(0.016, camera);
+        const s = runtime.getStats();
+        const loaded = s.get('Tiles Loaded')?.count || 0;
+        const inView = s.get('Tiles In View')?.count || 0;
+        stats.innerText = `Tiles: ${loaded} loaded, ${inView} in view`;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      
+      document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`btn-${mode}`).classList.add('active');
+
+      if (mode === 'orbit') {
+        freeControls.disable();
+        orbitControls.enabled = true;
+        info.classList.add('hidden');
+      } else if (mode === 'freemove') {
+        orbitControls.enabled = false;
+        freeControls.enable();
+        info.classList.remove('hidden');
+      }
+    }
+
+    // File handling
+    async function handleFiles(files) {
+      const fileMap = new Map();
+      let tilesetJson = null;
+
+      for (const file of files) {
+        const path = file.webkitRelativePath || file.name;
+        const fileName = path.split('/').pop();
+        
+        if (fileName === 'tileset.json') {
+          tilesetJson = file;
+        }
+        fileMap.set(fileName, file);
+      }
+
+      if (!tilesetJson) {
+        alert('tileset.json が見つかりません');
+        return;
+      }
+
+      loadedFiles = fileMap;
+      
+      // Create blob URLs for all files
+      const blobUrls = new Map();
+      for (const [name, file] of fileMap) {
+        blobUrls.set(name, URL.createObjectURL(file));
+      }
+
+      // Read tileset.json and modify URLs
+      const tilesetText = await tilesetJson.text();
+      let tilesetData = JSON.parse(tilesetText);
+      
+      // Replace relative URLs with blob URLs
+      function replaceUrls(obj) {
+        if (typeof obj === 'object' && obj !== null) {
+          for (const key in obj) {
+            if (key === 'uri' || key === 'url') {
+              const fileName = obj[key].split('/').pop();
+              if (blobUrls.has(fileName)) {
+                obj[key] = blobUrls.get(fileName);
+              }
+            } else {
+              replaceUrls(obj[key]);
+            }
+          }
+        }
+      }
+      replaceUrls(tilesetData);
+
+      // Create blob URL for modified tileset
+      const modifiedTileset = new Blob([JSON.stringify(tilesetData)], { type: 'application/json' });
+      const tilesetUrl = URL.createObjectURL(modifiedTileset);
+
+      await loadTileset(tilesetUrl);
+      
+      dropZone.classList.add('hidden');
+      toolbar.classList.remove('hidden');
+      info.classList.remove('hidden');
+      stats.classList.remove('hidden');
+    }
+
+    async function loadTileset(url) {
+      if (model) {
+        scene.remove(model);
+        if (runtime) runtime.dispose();
+      }
+
+      try {
+        const result = await Loader3DTiles.load({
+          url: url,
+          renderer: renderer,
+          viewport: {
+            width: canvasParent.clientWidth,
+            height: canvasParent.clientHeight,
+            devicePixelRatio: window.devicePixelRatio
+          },
+          options: {
+            debug: false,
+            maximumScreenSpaceError: 16,
+            resetTransform: true,
+            shading: 2
+          }
+        });
+
+        result.model.rotation.x = -Math.PI / 2;
+        scene.add(result.model);
+        model = result.model;
+        runtime = result.runtime;
+        stats.innerText = 'Loaded!';
+      } catch (e) {
+        console.error('Failed to load tileset:', e);
+        stats.innerText = 'Error: ' + e.message;
+      }
+    }
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      
+      const items = e.dataTransfer.items;
+      const files = [];
+      
+      async function traverseEntry(entry, path = '') {
+        if (entry.isFile) {
+          return new Promise((resolve) => {
+            entry.file((file) => {
+              file.webkitRelativePath = path + file.name;
+              files.push(file);
+              resolve();
+            });
+          });
+        } else if (entry.isDirectory) {
+          const reader = entry.createReader();
+          return new Promise((resolve) => {
+            reader.readEntries(async (entries) => {
+              for (const e of entries) {
+                await traverseEntry(e, path + entry.name + '/');
+              }
+              resolve();
+            });
+          });
+        }
+      }
+
+      for (const item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          await traverseEntry(entry);
+        }
+      }
+
+      if (files.length > 0) {
+        handleFiles(files);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+    });
+
+    // Toolbar buttons
+    document.getElementById('btn-orbit').addEventListener('click', () => setMode('orbit'));
+    document.getElementById('btn-freemove').addEventListener('click', () => setMode('freemove'));
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      camera.position.set(0, 2, 6);
+      camera.rotation.set(0, 0, 0);
+      if (orbitControls) orbitControls.target.set(0, 0, 0);
+    });
+
+    // Preview
+    let previewRenderer, previewScene, previewCamera, previewRuntime, previewRig, previewControls;
+    const previewContainer = document.getElementById('preview-container');
+    const closePreview = document.getElementById('close-preview');
+
+    document.getElementById('btn-preview').addEventListener('click', () => {
+      const cameraData = cameraHelper.exportCameraData?.() || null;
+      if (!cameraData || !cameraData.animationClip) {
+        alert('カメラデータがありません。+ボタンでカメラ位置を記録してください。');
+        return;
+      }
+      openPreview(cameraData);
+    });
+
+    async function openPreview(cameraData) {
+      previewContainer.classList.remove('hidden');
+      
+      const previewCanvasParent = document.querySelector('.preview-canvas-parent');
+      const previewScroller = document.querySelector('.preview-scroller');
+      
+      previewScene = new THREE.Scene();
+      previewScene.background = new THREE.Color(0x333333);
+
+      previewCamera = new THREE.PerspectiveCamera(60, previewCanvasParent.clientWidth / previewCanvasParent.clientHeight, 0.1, 1000);
+
+      previewRenderer = new THREE.WebGLRenderer({ antialias: true });
+      previewRenderer.setSize(previewCanvasParent.clientWidth, previewCanvasParent.clientHeight);
+      previewRenderer.setPixelRatio(window.devicePixelRatio);
+      previewCanvasParent.appendChild(previewRenderer.domElement);
+
+      const hemiLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+      previewScene.add(hemiLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(1, 1, 1);
+      previewScene.add(dirLight);
+
+      const grid = new THREE.GridHelper(10, 10);
+      previewScene.add(grid);
+
+      // Load tileset for preview
+      if (loadedFiles) {
+        // Recreate blob URLs
+        const blobUrls = new Map();
+        for (const [name, file] of loadedFiles) {
+          blobUrls.set(name, URL.createObjectURL(file));
+        }
+
+        const tilesetFile = loadedFiles.get('tileset.json');
+        const tilesetText = await tilesetFile.text();
+        let tilesetData = JSON.parse(tilesetText);
+
+        function replaceUrls(obj) {
+          if (typeof obj === 'object' && obj !== null) {
+            for (const key in obj) {
+              if (key === 'uri' || key === 'url') {
+                const fileName = obj[key].split('/').pop();
+                if (blobUrls.has(fileName)) {
+                  obj[key] = blobUrls.get(fileName);
+                }
+              } else {
+                replaceUrls(obj[key]);
+              }
+            }
+          }
+        }
+        replaceUrls(tilesetData);
+
+        const modifiedTileset = new Blob([JSON.stringify(tilesetData)], { type: 'application/json' });
+        const tilesetUrl = URL.createObjectURL(modifiedTileset);
+
+        try {
+          const result = await Loader3DTiles.load({
+            url: tilesetUrl,
+            renderer: previewRenderer,
+            viewport: {
+              width: previewCanvasParent.clientWidth,
+              height: previewCanvasParent.clientHeight,
+              devicePixelRatio: window.devicePixelRatio
+            },
+            options: {
+              debug: false,
+              maximumScreenSpaceError: 16,
+              resetTransform: true,
+              shading: 2
+            }
+          });
+
+          result.model.rotation.x = -Math.PI / 2;
+          previewScene.add(result.model);
+          previewRuntime = result.runtime;
+        } catch (e) {
+          console.error('Preview load error:', e);
+        }
+      }
+
+      // Setup scroll controls
+      previewRig = new CameraRig(previewCamera, previewScene);
+      previewRig.setAnimationClip(THREE.AnimationClip.parse(cameraData.animationClip));
+      previewRig.setAnimationTime(0);
+
+      previewControls = new ScrollControls(previewRig, {
+        scrollElement: previewScroller,
+        dampingFactor: 0.1,
+        startOffset: '-50vh',
+        endOffset: '-50vh',
+        scrollActions: [
+          { start: '0%', end: '15%', callback: (p) => previewRenderer.domElement.style.opacity = p },
+          { start: '85%', end: '100%', callback: (p) => previewRenderer.domElement.style.opacity = 1 - p },
+        ],
+      });
+      previewControls.enable();
+
+      function previewAnimate(t) {
+        if (!previewContainer.classList.contains('hidden')) {
+          requestAnimationFrame(previewAnimate);
+          
+          if (previewRig.hasAnimation) {
+            previewControls.update(t);
+          }
+          
+          if (previewRuntime) {
+            previewRuntime.update(0.016, previewCamera);
+          }
+          
+          previewRenderer.render(previewScene, previewCamera);
+        }
+      }
+      previewAnimate();
+    }
+
+    closePreview.addEventListener('click', () => {
+      previewContainer.classList.add('hidden');
+      if (previewRenderer) {
+        previewRenderer.dispose();
+        const canvas = document.querySelector('.preview-canvas-parent canvas');
+        if (canvas) canvas.remove();
+      }
+      if (previewRuntime) {
+        previewRuntime.dispose();
+        previewRuntime = null;
+      }
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = canvasParent.clientWidth / canvasParent.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(canvasParent.clientWidth, canvasParent.clientHeight);
+      if (runtime) {
+        runtime.setViewport({
+          width: canvasParent.clientWidth,
+          height: canvasParent.clientHeight,
+          devicePixelRatio: window.devicePixelRatio
+        });
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

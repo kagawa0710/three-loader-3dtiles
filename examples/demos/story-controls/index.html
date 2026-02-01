@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>3D Tiles + Story Controls</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: 0;
+    }
+    #scroll-container {
+      position: relative;
+      z-index: 1;
+    }
+    .section {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .section-content {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 40px;
+      border-radius: 12px;
+      max-width: 500px;
+      pointer-events: auto;
+    }
+    .section-content h2 {
+      margin-bottom: 16px;
+      font-size: 28px;
+    }
+    .section-content p {
+      font-size: 16px;
+      line-height: 1.6;
+      opacity: 0.9;
+    }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+    #info {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: monospace;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading 3D Tiles...</div>
+  <div id="canvas-container"></div>
+  <div id="info">Scroll: 0%</div>
+  
+  <div id="scroll-container">
+    <section class="section">
+      <div class="section-content">
+        <h2>Welcome</h2>
+        <p>Scroll down to explore the 3D model with cinematic camera movements powered by three-story-controls.</p>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="section-content">
+        <h2>Front View</h2>
+        <p>The camera smoothly transitions to show the front of the model.</p>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="section-content">
+        <h2>Side View</h2>
+        <p>Now viewing from the side to see the depth and structure.</p>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="section-content">
+        <h2>Top View</h2>
+        <p>A bird's eye view from above.</p>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="section-content">
+        <h2>Close Up</h2>
+        <p>Getting closer to see the details.</p>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { Loader3DTiles } from '../../../src/index.ts';
+    import { CameraRig, StoryPointsControls } from 'three-story-controls';
+
+    const container = document.getElementById('canvas-container');
+    const loadingEl = document.getElementById('loading');
+    const infoEl = document.getElementById('info');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      10000
+    );
+    camera.position.set(0, 5, 15);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(10, 20, 10);
+    scene.add(directionalLight);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight2.position.set(-10, 10, -10);
+    scene.add(directionalLight2);
+
+    let runtime = null;
+    let cameraRig = null;
+    let storyControls = null;
+
+    const pois = [
+      {
+        position: new THREE.Vector3(0, 5, 15),
+        quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.2, 0, 0)),
+        duration: 2,
+        ease: 'power2.inOut'
+      },
+      {
+        position: new THREE.Vector3(8, 3, 8),
+        quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, -0.7, 0)),
+        duration: 2,
+        ease: 'power2.inOut'
+      },
+      {
+        position: new THREE.Vector3(-8, 3, 8),
+        quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0.7, 0)),
+        duration: 2,
+        ease: 'power2.inOut'
+      },
+      {
+        position: new THREE.Vector3(0, 15, 0.1),
+        quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)),
+        duration: 2,
+        ease: 'power2.inOut'
+      },
+      {
+        position: new THREE.Vector3(2, 2, 5),
+        quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0.2, 0)),
+        duration: 2,
+        ease: 'power2.inOut'
+      }
+    ];
+
+    async function init() {
+      try {
+        const result = await Loader3DTiles.load({
+          url: '/tileset/tileset.json',
+          renderer: renderer,
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            devicePixelRatio: window.devicePixelRatio
+          },
+          options: {
+            maximumScreenSpaceError: 8,
+            resetTransform: true,
+            shading: 2
+          }
+        });
+
+        scene.add(result.model);
+        runtime = result.runtime;
+
+        cameraRig = new CameraRig(camera, scene);
+        storyControls = new StoryPointsControls(cameraRig, pois);
+        storyControls.enable();
+
+        loadingEl.style.display = 'none';
+        console.log('Loaded!');
+        infoEl.textContent = 'Click sections or use arrow keys';
+      } catch (e) {
+        console.error('Failed to load:', e);
+        loadingEl.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    init();
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      if (storyControls) {
+        storyControls.update(dt);
+      }
+
+      if (runtime) {
+        runtime.update(dt, camera);
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (runtime) {
+        runtime.setViewport({
+          width: window.innerWidth,
+          height: window.innerHeight,
+          devicePixelRatio: window.devicePixelRatio
+        });
+      }
+    });
+
+    document.querySelectorAll('.section').forEach((section, index) => {
+      section.addEventListener('click', () => {
+        if (storyControls) {
+          storyControls.goToPOI(index);
+          infoEl.textContent = `POI: ${index + 1} / ${pois.length}`;
+        }
+      });
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!storyControls) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        storyControls.nextPOI();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        storyControls.prevPOI();
+      }
+    });
+  </script>
+</body>
+</html>

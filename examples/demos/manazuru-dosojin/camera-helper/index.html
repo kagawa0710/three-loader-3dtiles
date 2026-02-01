@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>真鶴・岩の道祖神 - Camera Helper</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { width: 100vw; height: 100vh; overflow: hidden; }
+    .canvas-parent { width: 100vw; height: 100vh; touch-action: none; }
+    #info {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 280px;
+      padding: 1rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      background-color: rgba(255,255,255,0.9);
+      color: black;
+    }
+    #info a { color: #44f; }
+    #stats {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class='canvas-parent'></div>
+  <div id="info">
+    <strong>真鶴・岩の道祖神</strong><br><br>
+    +ボタンでカメラ位置を記録<br>
+    矢印/WASDキーで移動<br>
+    マウスドラッグで回転<br>
+    U/Nキーで上下移動<br>
+    ホイールで前後移動<br><br>
+    JSONエクスポートでカメラデータを保存<br><br>
+    <a href="../">シンプルビューアに戻る</a>
+  </div>
+  <div id="stats">Loading...</div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { CameraRig, FreeMovementControls, CameraHelper } from '../../../../../three-story-controls/dist/three-story-controls.esm.js';
+    import { Loader3DTiles } from '../../../../src/index.ts';
+
+    const canvasParent = document.querySelector('.canvas-parent');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
+
+    const camera = new THREE.PerspectiveCamera(60, canvasParent.clientWidth / canvasParent.clientHeight, 0.1, 1000);
+    camera.position.set(0, 2, 6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(canvasParent.clientWidth, canvasParent.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    canvasParent.appendChild(renderer.domElement);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(1, 1, 1);
+    scene.add(dirLight);
+
+    const grid = new THREE.GridHelper(10, 10);
+    scene.add(grid);
+
+    const rig = new CameraRig(camera, scene);
+    const controls = new FreeMovementControls(rig, {
+      domElement: canvasParent,
+      pointerScaleFactor: 0.01,
+      keyboardScaleFactor: 0.05,
+      wheelScaleFactor: 0.01,
+    });
+    controls.enable();
+
+    const cameraHelper = new CameraHelper(rig, controls, renderer.domElement);
+
+    let runtime = null;
+
+    async function loadTileset() {
+      try {
+        const result = await Loader3DTiles.load({
+          url: '/manazuru-dosojin/tileset.json',
+          renderer: renderer,
+          viewport: {
+            width: canvasParent.clientWidth,
+            height: canvasParent.clientHeight,
+            devicePixelRatio: window.devicePixelRatio
+          },
+          options: {
+            debug: false,
+            maximumScreenSpaceError: 16,
+            resetTransform: true,
+            shading: 2
+          }
+        });
+
+        result.model.rotation.x = -Math.PI / 2;
+        scene.add(result.model);
+        runtime = result.runtime;
+        document.getElementById('stats').innerText = 'Loaded!';
+      } catch (e) {
+        console.error('Failed to load tileset:', e);
+        document.getElementById('stats').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    loadTileset();
+
+    function render(t) {
+      controls.update(t);
+      
+      if (runtime) {
+        runtime.update(0.016, camera);
+      }
+      
+      renderer.render(scene, camera);
+      cameraHelper.update(t);
+      window.requestAnimationFrame(render);
+    }
+
+    render();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = canvasParent.clientWidth / canvasParent.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(canvasParent.clientWidth, canvasParent.clientHeight);
+      if (runtime) {
+        runtime.setViewport({
+          width: canvasParent.clientWidth,
+          height: canvasParent.clientHeight,
+          devicePixelRatio: window.devicePixelRatio
+        });
+      }
+    });
+  </script>
+</body>
+</html>

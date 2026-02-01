@@ -1,0 +1,26 @@
+# Tileset data (large files)
+dist/lib/tileset/
+dist/web/tileset/
+public/
+
+# DRACO libs (users should use CDN or provide their own)
+dist/lib/libs/
+dist/web/libs/
+
+# Web examples (not needed for npm package)
+dist/web/
+
+# Development files
+examples/
+test/
+.github/
+.vscode/
+.DS_Store
+*.log
+
+# Config files
+vite.config.*.js
+tsconfig.json
+api-extractor.json
+.eslintrc.js
+.prettierrc

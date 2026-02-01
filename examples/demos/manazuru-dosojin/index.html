@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>真鶴・岩の道祖神 - 3D Tiles Viewer</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      max-width: 400px;
+      z-index: 100;
+    }
+    #info a { color: #88f; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <div>真鶴・岩の道祖神</div>
+    <div id="stats"></div>
+    <br>
+    <a href="camera-helper/">Camera Helper でカメラ位置を編集</a>
+  </div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { Loader3DTiles } from '../../../src/index.ts';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100000000);
+    camera.position.set(0, 2, 6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const gridHelper = new THREE.GridHelper(10, 10);
+    scene.add(gridHelper);
+
+    let runtime = null;
+
+    const TILESET_URL = '/manazuru-dosojin/tileset.json';
+
+    async function loadTileset() {
+      try {
+        const result = await Loader3DTiles.load({
+          url: TILESET_URL,
+          renderer: renderer,
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            devicePixelRatio: window.devicePixelRatio
+          },
+          options: {
+            debug: false,
+            maximumScreenSpaceError: 16,
+            resetTransform: true,
+            shading: 2
+          }
+        });
+
+        result.model.rotation.x = -Math.PI / 2;
+        scene.add(result.model);
+        runtime = result.runtime;
+
+        console.log('Tileset loaded!');
+        document.getElementById('stats').innerText = 'Loaded!';
+      } catch (e) {
+        console.error('Failed to load tileset:', e);
+        document.getElementById('stats').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    loadTileset();
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      controls.update();
+
+      if (runtime) {
+        runtime.update(dt, camera);
+
+        const stats = runtime.getStats();
+        const tilesLoaded = stats.get('Tiles Loaded')?.count || 0;
+        const tilesInView = stats.get('Tiles In View')?.count || 0;
+        document.getElementById('stats').innerText = 
+          `Tiles Loaded: ${tilesLoaded} | In View: ${tilesInView}`;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (runtime) {
+        runtime.setViewport({
+          width: window.innerWidth,
+          height: window.innerHeight,
+          devicePixelRatio: window.devicePixelRatio
+        });
+      }
+    });
+  </script>
+</body>
+</html>
